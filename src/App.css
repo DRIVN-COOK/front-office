@@ -1,42 +1,203 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* =======================================
+   DRIVN-COOK Theme (app.css)
+   — Tailwind doit être importé dans src/index.css :
+     @import "tailwindcss";
+   ======================================= */
+
+/* ========== Design tokens ========== */
+:root {
+  --primary: #f7fbf3;
+  --primary-dark: #eaf6e0;
+  --secondary: #82b84d;
+  --secondary-600: #6fa443;
+  --secondary-dark: #275d2f;
+  --accent: #4aa38a;
+  --accent-600: #3a8670;
+
+  --text: #1e3d27;
+  --text-light: #4a604f;
+  --muted: #6b7d6f;
+
+  --card-bg: #ffffff;
+  --card-shadow: rgba(0, 0, 0, 0.06);
+  --border: #cce3bb;
+
+  --button-gradient: linear-gradient(135deg, #a3d07c, #82b84d);
+
+  --admin-header-bg: #f1f8ec;
+
+  --success: #2e7d32;
+  --info: #1976d2;
+  --warning: #f59e0b;
+  --danger: #d32f2f;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+
+  --shadow-sm: 0 1px 2px var(--card-shadow);
+  --shadow-md: 0 6px 16px var(--card-shadow);
+  --shadow-lg: 0 12px 28px var(--card-shadow);
+}
+.dark {
+  --primary: #121212;
+  --primary-dark: #1a1a1a;
+  --secondary: #a3d07c;
+  --secondary-600: #8cc065;
+  --secondary-dark: #82b84d;
+  --accent: #53c2a5;
+  --accent-600: #3da487;
+
+  --text: #f0f5ef;
+  --text-light: #c9dbc8;
+  --muted: #9bb0a1;
+
+  --card-bg: #1c1c1c;
+  --card-shadow: rgba(255, 255, 255, 0.05);
+  --border: #2f4f3f;
+
+  --admin-header-bg: #0e1111;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
+/* ========== Base ========== */
+html, body { height: 100%; }
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans";
+  background: var(--primary);
+  color: var(--text);
+  margin: 0;
+  line-height: 1.6;
+  transition: background .25s ease, color .25s ease, border-color .25s ease, box-shadow .25s ease;
 }
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+.container-qp { width: min(1200px, 92%); margin-inline: auto; }
+
+/* focus */
+:focus-visible { outline: 2px dashed var(--accent); outline-offset: 2px; border-radius: 8px; }
+
+/* ========== Utilities ========== */
+.text-muted { color: var(--muted); }
+.border-subtle { border: 1px solid var(--border); }
+.shadow-md-qp { box-shadow: var(--shadow-md); }
+.shadow-lg-qp { box-shadow: var(--shadow-lg); }
+.rounded-lg { border-radius: var(--radius-lg); }
+.rounded-xl { border-radius: var(--radius-xl); }
+.pressable { transition: transform .06s ease; }
+.pressable:active { transform: translateY(1px) scale(.995); }
+
+/* ========== Header (avec correctifs dropdown) ========== */
+.admin-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;              /* header au-dessus du contenu */
+  isolation: isolate;       /* nouveau contexte de stacking → évite conflits backdrop-filter */
+  background: var(--admin-header-bg);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(6px);
 }
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.admin-header .inner {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 20px;
+  position: relative;       /* ancre pour z-index local */
+  z-index: 40;
+  overflow: visible;        /* IMPORTANT pour les menus déroulants */
+}
+.admin-header nav { overflow: visible; } /* IMPORTANT: laisse déborder le panel */
+
+/* ========== Boutons ========== */
+.btn {
+  -webkit-tap-highlight-color: transparent;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 10px 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  font-weight: 700;
+  letter-spacing: .2px;
+  cursor: pointer;
+  transition: transform .06s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease, color .2s ease;
+  user-select: none;
+}
+.btn:active { transform: translateY(1px) scale(.995); }
+
+.btn-primary {
+  color: #fff;
+  background: var(--button-gradient);
+  box-shadow: 0 8px 22px rgba(130, 184, 77, .25);
+}
+.btn-primary:hover { filter: brightness(1.05); }
+.btn-primary:focus-visible { box-shadow: 0 0 0 4px color-mix(in oklab, var(--secondary), white 70%); }
+
+.btn-outline {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+.btn-outline:hover {
+  background: var(--primary-dark);
+  border-color: color-mix(in oklab, var(--border), black 10%);
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.btn-accent {
+  background: linear-gradient(135deg, var(--accent), var(--accent-600));
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(58, 134, 112, .25);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
+/* ========== Cards (utiles globalement) ========== */
 .card {
-  padding: 2em;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  overflow: clip;
+  transition: transform .12s ease, box-shadow .2s ease;
+}
+.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.card-header { padding: 16px 18px; border-bottom: 1px solid var(--border); font-weight: 700; }
+.card-body { padding: 18px; }
+.card-footer { padding: 14px 18px; border-top: 1px solid var(--border); background: color-mix(in oklab, var(--primary), black 2%); }
+
+/* ========== Badges (optionnel) ========== */
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .82rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--primary), white 6%);
+}
+.badge.success { border-color: color-mix(in oklab, var(--success), white 60%); color: var(--success); }
+.badge.info    { border-color: color-mix(in oklab, var(--info), white 60%);    color: var(--info); }
+.badge.warn    { border-color: color-mix(in oklab, var(--warning), white 50%); color: var(--warning); }
+.badge.danger  { border-color: color-mix(in oklab, var(--danger),  white 50%); color: var(--danger); }
+
+/* ========== Inputs (optionnel) ========== */
+.input, .select, .textarea {
+  width: 100%;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: var(--text);
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.input::placeholder, .textarea::placeholder { color: var(--text-light); }
+.input:focus, .select:focus, .textarea:focus {
+  border-color: color-mix(in oklab, var(--secondary), black 10%);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--secondary), white 75%);
+  outline: none;
 }
 
-.read-the-docs {
-  color: #888;
+/* ========== Helpers layout ========== */
+.hero {
+  position: relative;
+  border-radius: var(--radius-xl);
+  overflow: clip;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, color-mix(in oklab, var(--secondary), white 85%), transparent),
+    radial-gradient(800px 400px at 110% 10%, color-mix(in oklab, var(--accent), white 85%), transparent),
+    var(--card-bg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
 }
+.hero .content { padding: clamp(18px, 6vw, 36px); }

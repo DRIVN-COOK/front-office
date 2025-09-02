@@ -1,5 +1,7 @@
+// vite.config.ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'   // ⬅️ manquait
 import dotenv from 'dotenv'
 
 dotenv.config({ path: '../infra/.env' })
@@ -9,11 +11,13 @@ export default defineConfig(() => {
   const apiPort = Number(process.env.PORT_API || 3000)
 
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      tailwindcss(), 
+    ],
     resolve: {
-      // IMPORTANT : évite 2 instances de React avec les symlinks
       dedupe: ['react', 'react-dom'],
-      // preserveSymlinks: true, // <-- je conseille de l'enlever en dev
+      // preserveSymlinks: true,
     },
     base: '/',
     server: {
@@ -28,10 +32,7 @@ export default defineConfig(() => {
       },
     },
     optimizeDeps: {
-      // en cas de pépin, tu peux forcer Vite à re-prébundler
-      // include: ['@drivn-cook/shared'],
-      // ou au contraire l’exclure :
-      // exclude: ['@drivn-cook/shared'],
+      // include/exclude si besoin
     },
   }
 })
