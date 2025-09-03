@@ -98,6 +98,7 @@ export default function Header() {
           <NavLink to="/client/menu" className={navClass}>Menu</NavLink>
           <NavLink to="/client/order/my" className={navClass}>Mes commandes</NavLink>
           <NavLink to="/franchisée/events" className={navClass}>Événements</NavLink>
+          <NavLink to="/events" className={navClass}>Événements</NavLink>
           <NavLink to="/devenir-franchisee" className={navClass}>Devenir franchisée</NavLink>
           {hasRole('FRANCHISEE') && (
             <NavLink to="/franchisée/dashboard" className={navClass}>Espace franchisée</NavLink>
