@@ -97,11 +97,7 @@ export default function Header() {
         <nav className="hidden md:flex items-center gap-1">
           <NavLink to="/client/menu" className={navClass}>Menu</NavLink>
           <NavLink to="/client/order/my" className={navClass}>Mes commandes</NavLink>
-<<<<<<< HEAD
           <NavLink to="/franchisée/events" className={navClass}>Événements</NavLink>
-=======
-          <NavLink to="/events" className={navClass}>Événements</NavLink>
->>>>>>> cab8b67 (front final)
           <NavLink to="/devenir-franchisee" className={navClass}>Devenir franchisée</NavLink>
           {hasRole('FRANCHISEE') && (
             <NavLink to="/franchisée/dashboard" className={navClass}>Espace franchisée</NavLink>
@@ -249,11 +245,7 @@ export default function Header() {
               className={({ isActive }) => `px-3 py-2 rounded-md ${isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'}`}>
               Mes commandes
             </NavLink>
-<<<<<<< HEAD
             <NavLink to="/franchisée/events" onClick={() => setMobileOpen(false)}
-=======
-            <NavLink to="/events" onClick={() => setMobileOpen(false)}
->>>>>>> cab8b67 (front final)
               className={({ isActive }) => `px-3 py-2 rounded-md ${isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'}`}>
               Événements
             </NavLink>
