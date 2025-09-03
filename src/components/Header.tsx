@@ -97,7 +97,6 @@ export default function Header() {
         <nav className="hidden md:flex items-center gap-1">
           <NavLink to="/client/menu" className={navClass}>Menu</NavLink>
           <NavLink to="/client/order/my" className={navClass}>Mes commandes</NavLink>
-          <NavLink to="/franchisée/events" className={navClass}>Événements</NavLink>
           <NavLink to="/events" className={navClass}>Événements</NavLink>
           <NavLink to="/devenir-franchisee" className={navClass}>Devenir franchisée</NavLink>
           {hasRole('FRANCHISEE') && (
@@ -245,10 +244,6 @@ export default function Header() {
             <NavLink to="/client/order/my" onClick={() => setMobileOpen(false)}
               className={({ isActive }) => `px-3 py-2 rounded-md ${isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'}`}>
               Mes commandes
-            </NavLink>
-            <NavLink to="/franchisée/events" onClick={() => setMobileOpen(false)}
-              className={({ isActive }) => `px-3 py-2 rounded-md ${isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'}`}>
-              Événements
             </NavLink>
             <NavLink to="/devenir-franchisee" onClick={() => setMobileOpen(false)}
               className={({ isActive }) => `px-3 py-2 rounded-md ${isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'}`}>
