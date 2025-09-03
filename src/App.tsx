@@ -24,7 +24,7 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const MenuPage = lazy(() => import('./pages/clients/menu/MenuPage'))
 const MenuItemDetailPage = lazy(() => import('./pages/clients/menu/MenuItemDetailPage'))
 const CartPage = lazy(() => import('./pages/clients/cart/CartPage'))
-const CheckoutPage = lazy(() => import('./pages/clients/order/CheckoutPage'))
+const CheckoutPage = lazy(() => import('./pages/clients/order/CheckoutPage')) // <- Paiement (Embedded/Hosted)
 const OrderConfirmationPage = lazy(() => import('./pages/clients/order/OrderConfirmationPage'))
 const MyOrdersPage = lazy(() => import('./pages/clients/order/MyOrdersPage'))
 
@@ -38,6 +38,7 @@ const PurchaseOrderListPage  = lazy(() => import('./pages/franchisee/procurement
 const InvoicesPage           = lazy(() => import('./pages/franchisee/billing/InvoicesPage'))
 const SalesSummaryPage       = lazy(() => import('./pages/franchisee/reporting/SalesSummaryPage'))
 const CreateEventPage        = lazy(() => import('./pages/franchisee/events/CreatePage'))
+const EventsManagementPage   = lazy(() => import('./pages/franchisee/events/EventsManagementPage'))
 const StockPage              = lazy(() => import('./pages/franchisee/stock/StockPage'))
 
 function ProtectedRoute({ children }: { children: ReactElement }) {
@@ -81,7 +82,7 @@ export default function App(): JSX.Element {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/devenir-franchisee" element={<FranchiseAdhesionPage />} />
-              <Route path="/events" element={<PublicEventsPage />} /> {/* ✅ événements publics */}
+              <Route path="/events" element={<PublicEventsPage />} /> {/* événements publics */}
 
               {/* Profil pour tout utilisateur connecté */}
               <Route
@@ -93,10 +94,12 @@ export default function App(): JSX.Element {
                 }
               />
 
-              {/* ===== Espace CLIENT (utilisateurs en général) ===== */}
+              {/* ===== Espace CLIENT ===== */}
               <Route path="/client/menu" element={<MenuPage />} />
               <Route path="/client/menu/:id" element={<MenuItemDetailPage />} />
               <Route path="/client/cart" element={<CartPage />} />
+
+              {/* Paiement commande client (Stripe Embedded/Hosted) */}
               <Route
                 path="/client/order/checkout"
                 element={
@@ -105,6 +108,33 @@ export default function App(): JSX.Element {
                   </ProtectedRoute>
                 }
               />
+              {/* Alias retours Stripe */}
+              <Route
+                path="/client/order/checkout/return"
+                element={
+                  <ProtectedRoute>
+                    <CheckoutPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/client/order/checkout/success"
+                element={
+                  <ProtectedRoute>
+                    <CheckoutPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/client/order/checkout/cancel"
+                element={
+                  <ProtectedRoute>
+                    <CheckoutPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Confirmation (si utilisée ailleurs) */}
               <Route
                 path="/client/order/confirmation/:id"
                 element={
@@ -113,6 +143,8 @@ export default function App(): JSX.Element {
                   </ProtectedRoute>
                 }
               />
+
+              {/* Mes commandes */}
               <Route
                 path="/client/order/my"
                 element={
@@ -121,8 +153,13 @@ export default function App(): JSX.Element {
                   </ProtectedRoute>
                 }
               />
+              {/* Alias pour compat navigate('/client/orders') */}
+              <Route path="/client/orders" element={<Navigate to="/client/order/my" replace />} />
 
               {/* ===== Espace FRANCHISÉE ===== */}
+              {/* Alias ASCII (sécurité) */}
+              <Route path="/franchisee/*" element={<Navigate to="/franchisée" replace />} />
+
               <Route
                 path="/franchisée"
                 element={
@@ -139,8 +176,10 @@ export default function App(): JSX.Element {
                 <Route path="stock" element={<StockPage />} />
                 <Route path="orders" element={<OrdersListPage />} />
                 <Route path="orders/:id" element={<OrderDetailPage />} />
-                {/* La création d'événements reste côté franchisée */}
+                <Route path="events" element={<EventsManagementPage />} />
+                {/* Création dédiée (si tu gardes la page séparée) */}
                 <Route path="events/new" element={<CreateEventPage />} />
+
                 <Route path="procurement" element={<PurchaseOrderListPage />} />
                 <Route path="billing" element={<InvoicesPage />} />
                 <Route path="reporting" element={<SalesSummaryPage />} />

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, useAuth } from '@drivn-cook/shared'
+import { updateUser } from '../services/user.service'
 
 type MeUpdatePayload = {
   firstName?: string
@@ -24,12 +25,20 @@ export default function ProfilePage() {
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault()
     setErr(null); setMsg(null); setSaving(true)
+
+    if (!user?.id) {
+      setErr('Utilisateur non authentifié')
+      setSaving(false)
+      return
+    }
+
     const payload: MeUpdatePayload = {
       firstName: firstName.trim() || undefined,
       lastName:  lastName.trim()  || undefined,
     }
+
     try {
-      await api.put('/auth/me', payload)
+      await updateUser(user.id, payload)
       setMsg('Profil mis à jour ✅')
     } catch (e: any) {
       const m = e?.response?.data?.message ?? e?.response?.data?.error ?? e?.message ?? 'Échec de la mise à jour'
@@ -79,6 +88,7 @@ export default function ProfilePage() {
 }
 
 function ChangePasswordCard() {
+  const { user } = useAuth() as any
   const [currentPassword, setCurrent] = useState('')
   const [newPassword, setNew]         = useState('')
   const [confirm, setConfirm]         = useState('')
@@ -90,6 +100,10 @@ function ChangePasswordCard() {
     e.preventDefault()
     setErr(null); setMsg(null)
 
+    if (!user?.id) {
+      setErr('Utilisateur non authentifié')
+      return
+    }
     if (!newPassword || newPassword.length < 8) {
       setErr('Le nouveau mot de passe doit contenir au moins 8 caractères.')
       return
@@ -101,6 +115,7 @@ function ChangePasswordCard() {
 
     setSaving(true)
     try {
+      // pas de wrapper dans user.service : on utilise l’endpoint auth direct
       await api.put('/auth/password', { currentPassword, newPassword })
       setMsg('Mot de passe mis à jour ✅')
       setCurrent(''); setNew(''); setConfirm('')

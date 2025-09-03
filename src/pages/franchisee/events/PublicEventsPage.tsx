@@ -1,11 +1,13 @@
+// src/pages/franchisee/events/PublicEventsPage.tsx
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, useAuth } from '@drivn-cook/shared'
-import type { Event as EventDTO } from '@drivn-cook/shared' // ← si non exporté à la racine, adapte l'import
+import type { Event as EventDTO } from '@drivn-cook/shared'
+import { joinEvent } from '../../../services/events.service'  // 👈 NEW
 
 type ListResponse =
-  | { items: EventDTO[]; page: number; pageSize: number; total: number } // format de ton contrôleur listPublic
-  | EventDTO[]                                                             // fallback si l’API renvoie un array simple
+  | { items: EventDTO[]; page: number; pageSize: number; total: number }
+  | EventDTO[]
 
 function formatDate(iso?: string | null) {
   if (!iso) return '—'
@@ -19,20 +21,27 @@ function formatDate(iso?: string | null) {
       minute: '2-digit',
     }).format(d)
   } catch {
-    return iso
+    return iso as string
   }
+}
+
+function getRoles(user: any): string[] {
+  const raw: string[] = user?.roles ?? (user?.role ? [user.role] : [])
+  return raw.map((r) => String(r).toUpperCase())
 }
 
 export default function PublicEventsPage() {
   const { user } = useAuth() as any
+  const roles = getRoles(user)
+  const isFranchiseeOrAdmin =
+    roles.includes('FRANCHISEE') || roles.includes('ADMIN') || roles.includes('ADMINISTRATOR')
+
   const navigate = useNavigate()
 
   const [events, setEvents] = useState<EventDTO[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-
-  // garde localement les events rejoints durant la session
   const [joined, setJoined] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -47,7 +56,10 @@ export default function PublicEventsPage() {
         const items = Array.isArray(data) ? data : data.items
         if (mounted) setEvents(items)
       } catch (e: any) {
-        if (mounted) setError(e?.response?.data?.message ?? e?.message ?? 'Impossible de charger les événements.')
+        if (mounted)
+          setError(
+            e?.response?.data?.message ?? e?.message ?? 'Impossible de charger les événements.'
+          )
       } finally {
         if (mounted) setLoading(false)
       }
@@ -61,25 +73,26 @@ export default function PublicEventsPage() {
     const q = query.trim().toLowerCase()
     if (!q) return events.slice().sort((a, b) => (a.startAt > b.startAt ? 1 : -1))
     return events
-      .filter((e) =>
-        [e.title, e.description].some((x) => (x ?? '').toLowerCase().includes(q)),
-      )
+      .filter((e) => [e.title, (e as any).description].some((x) => (x ?? '').toLowerCase().includes(q)))
       .sort((a, b) => (a.startAt > b.startAt ? 1 : -1))
   }, [events, query])
 
   async function handleJoin(eventId: string) {
     setError(null)
-    // besoin d'être connecté en "client"
+
     if (!user) {
       navigate('/login')
       return
     }
 
-    // on tente d'inférer l'id customer (si ton API le déduit via le JWT, tu peux envoyer {}).
-    const customerId = user?.customer?.id ?? user?.customerId ?? undefined
+    // 🔒 Interdit franchisés & admins
+    if (isFranchiseeOrAdmin) {
+      setError("Votre rôle ne permet pas de vous inscrire à un événement public.")
+      return
+    }
 
     try {
-      await api.post(`/events/${eventId}/registrations`, customerId ? { customerId } : {})
+      await joinEvent(eventId)           // 👈 plus de customerId requis
       setJoined((prev) => new Set(prev).add(eventId))
     } catch (e: any) {
       const s = e?.response?.status
@@ -88,9 +101,12 @@ export default function PublicEventsPage() {
         e?.response?.data?.error ??
         e?.message ??
         `Erreur ${s ?? ''}`
-      // 401 → session expirée
+
       if (s === 401) {
         navigate('/login')
+      } else if (s === 409) {
+        // déjà inscrit
+        setJoined((prev) => new Set(prev).add(eventId))
       } else {
         setError(String(msg))
       }
@@ -123,13 +139,12 @@ export default function PublicEventsPage() {
       {loading ? (
         <div className="p-4">Chargement…</div>
       ) : filtered.length === 0 ? (
-        <div className="p-6 rounded-xl border text-center opacity-70">
-          Aucun événement pour le moment.
-        </div>
+        <div className="p-6 rounded-xl border text-center opacity-70">Aucun événement pour le moment.</div>
       ) : (
         <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map((ev) => {
             const alreadyJoined = joined.has(ev.id)
+            const blockJoin = isFranchiseeOrAdmin
             return (
               <li key={ev.id} className="rounded-2xl border p-4 bg-white/5 flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-3">
@@ -147,8 +162,10 @@ export default function PublicEventsPage() {
                   )}
                 </div>
 
-                {ev.description && (
-                  <p className="text-sm leading-relaxed line-clamp-3 opacity-90">{ev.description}</p>
+                {(ev as any).description && (
+                  <p className="text-sm leading-relaxed line-clamp-3 opacity-90">
+                    {(ev as any).description}
+                  </p>
                 )}
 
                 <div className="mt-auto flex items-center gap-2">
@@ -161,10 +178,19 @@ export default function PublicEventsPage() {
 
                   <button
                     onClick={() => handleJoin(ev.id)}
-                    disabled={alreadyJoined}
+                    disabled={alreadyJoined || blockJoin}
+                    title={
+                      blockJoin
+                        ? 'Réservé au public : les franchisés et admins ne peuvent pas participer.'
+                        : undefined
+                    }
                     className="px-3 py-2 rounded-lg bg-black text-white hover:opacity-90 disabled:opacity-60 text-sm"
                   >
-                    {alreadyJoined ? 'Inscrit·e ✅' : "Je participe"}
+                    {alreadyJoined
+                      ? 'Inscrit·e ✅'
+                      : blockJoin
+                      ? 'Participation non autorisée'
+                      : 'Je participe'}
                   </button>
                 </div>
               </li>

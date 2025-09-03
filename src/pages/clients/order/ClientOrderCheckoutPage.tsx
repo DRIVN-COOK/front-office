@@ -1,4 +1,3 @@
-// src/pages/clients/order/CheckoutPage.tsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { loadStripe, type Stripe } from '@stripe/stripe-js';
@@ -6,7 +5,7 @@ import { startCustomerOrderPayment, confirmPayment } from '../../../services/cus
 
 type EmbeddedCheckoutHandle = { mount: (selector: string) => void; unmount?: () => void };
 
-export default function CheckoutPage() {
+export default function ClientOrderCheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const search = new URLSearchParams(location.search);
@@ -25,7 +24,7 @@ export default function CheckoutPage() {
   const canStart = useMemo(() => !!orderId && !submitting && !clientSecret, [orderId, submitting, clientSecret]);
 
   useEffect(() => {
-    if (!orderId) setError('Aucune commande à régler.');
+    if (!orderId) setError("Aucune commande à régler.");
   }, [orderId]);
 
   useEffect(() => {
@@ -37,10 +36,10 @@ export default function CheckoutPage() {
         setError(null);
         setInfo(null);
 
-        // 1) Session EMBEDDED (fallback hosted possible)
+        // 1) Demande une session EMBEDDED (avec fallback hosted possible)
         const res = await startCustomerOrderPayment(orderId, { uiMode: 'embedded' });
 
-        // Fallback hosted -> redirection
+        // Fallback hosted -> redirige
         if ('url' in res && res.url) {
           window.location.href = res.url;
           return;
@@ -55,16 +54,16 @@ export default function CheckoutPage() {
         setClientSecret(res.clientSecret);
         sessionIdRef.current = res.sessionId;
 
-        // 2) Charger Stripe
+        // 2) Charger Stripe (une fois)
         if (!stripeRef.current) {
           const pk = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-          if (!pk) throw new Error('VITE_STRIPE_PUBLISHABLE_KEY manquante.');
+          if (!pk) throw new Error("VITE_STRIPE_PUBLISHABLE_KEY manquante.");
           const stripe = await loadStripe(pk);
           if (!stripe) throw new Error("Impossible d'initialiser Stripe.");
           stripeRef.current = stripe;
         }
 
-        // 3) Monter l’Embedded Checkout
+        // 3) Monter l’Embedded Checkout (une fois)
         if (!mountedRef.current && stripeRef.current) {
           const checkout = await stripeRef.current.initEmbeddedCheckout({
             fetchClientSecret: async () => res.clientSecret!,
@@ -76,7 +75,7 @@ export default function CheckoutPage() {
           setInfo('Veuillez compléter le paiement ci-dessous.');
         }
       } catch (e: any) {
-        setError(e?.response?.data?.message ?? e?.message ?? 'Erreur de paiement.');
+        setError(e?.response?.data?.message ?? e?.message ?? "Erreur de paiement.");
         setSubmitting(false);
       }
     })();
@@ -93,8 +92,8 @@ export default function CheckoutPage() {
       // 1) Confirme côté back
       await confirmPayment(sessionId);
 
-      // 2) Redirection vers "Mes commandes"
-      navigate('/client/order/my', { replace: true, state: { highlightId: orderId } });
+      // 2) Redirige vers la page de succès/liste commandes
+      navigate('/client/orders', { replace: true, state: { highlightId: orderId } });
     } catch (e: any) {
       setError(e?.response?.data?.message ?? e?.message ?? 'Impossible de finaliser après paiement.');
     } finally {
@@ -112,7 +111,7 @@ export default function CheckoutPage() {
       <div id="stripe-checkout" className="mt-4 rounded-xl border p-3 bg-white/5" />
 
       <div className="mt-4 text-sm opacity-70">
-        <Link className="underline" to="/client/order/my">Retour à mes commandes</Link>
+        <Link className="underline" to="/client/orders">Retour à mes commandes</Link>
       </div>
     </div>
   );

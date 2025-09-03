@@ -12,13 +12,12 @@ export default function DashboardPage() {
 
       {/* Cards grid */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        {/* Commandes (temps réel) */}
+        {/* Commandes */}
         <Link
           to="/franchisée/orders/board"
           className="group rounded-2xl border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 shadow-sm p-5 transition flex items-start gap-4"
         >
           <div className="rounded-xl bg-neutral-100 p-3 text-neutral-700 group-hover:bg-neutral-200">
-            {/* icon: list/bolt */}
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path d="M4 6h12M4 12h10M4 18h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               <path d="M18 7l-2 4h3l-2 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -64,10 +63,7 @@ export default function DashboardPage() {
         </Link>
 
         {/* Gestion des événements */}
-        <Link
-          to="/franchisée/events"
-          className="group rounded-2xl border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 shadow-sm p-5 transition flex items-start gap-4"
-        >
+        <div className="group rounded-2xl border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 shadow-sm p-5 transition flex items-start gap-4">
           <div className="rounded-xl bg-neutral-100 p-3 text-neutral-700 group-hover:bg-neutral-200">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
@@ -79,23 +75,25 @@ export default function DashboardPage() {
             <p className="text-sm text-neutral-600 mt-1">
               Créer et gérer les événements de présence du camion.
             </p>
-            <div className="mt-3 flex items-center gap-4">
-              <span className="inline-flex items-center gap-1 text-sm font-medium text-black group-hover:underline">
-                Voir la liste
+            <div className="mt-3 flex items-center gap-4 flex-wrap">
+              <Link
+                to="/franchisée/events"
+                className="inline-flex items-center gap-1 text-sm font-medium text-black group-hover:underline"
+              >
+                Event Manager
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M5 12h14M13 5l7 7-7 7" stroke="currentColor" strokeWidth="2" />
                 </svg>
-              </span>
+              </Link>
               <Link
                 to="/franchisée/events/new"
                 className="text-sm text-neutral-700 underline hover:text-black"
-                onClick={(e) => e.stopPropagation()}
               >
                 Créer un événement
               </Link>
             </div>
           </div>
-        </Link>
+        </div>
 
         {/* Placeholder */}
         <div

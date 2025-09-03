@@ -1,23 +1,29 @@
 // src/pages/franchisee/events/CreatePage.tsx
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useAuth, api } from '@drivn-cook/shared' // client axios intercepté (Bearer + refresh)
+import { useAuth, api } from '@drivn-cook/shared'
+import { getMeFull } from './../../../services/franchiseUser.service'
 
 type EventForm = {
   title: string
   description: string
-  startAt: string  
-  endAt: string    
+  startAt: string
+  endAt: string
   isPublic: boolean
   locationId?: string
+}
+
+// Helper pour extraire un franchiseeId depuis /auth/me/full
+function extractFranchiseeId(me: any): string | undefined {
+  const legacy = me?.franchisee?.id ?? me?.franchiseeId ?? me?.profile?.franchiseeId
+  if (legacy) return legacy
+  const fu = Array.isArray(me?.franchiseUsers) ? me.franchiseUsers : []
+  return fu.find((x: any) => x?.franchisee?.id)?.franchisee?.id
 }
 
 export default function CreateEventPage() {
   const navigate = useNavigate()
   const { user } = useAuth() as any
-
-  const franchiseeId: string | undefined =
-    user?.franchisee?.id ?? user?.franchiseeId ?? user?.profile?.franchiseeId ?? undefined
 
   const [form, setForm] = useState<EventForm>({
     title: '',
@@ -45,7 +51,23 @@ export default function CreateEventPage() {
     e.preventDefault()
     setError(null)
 
-    if (!franchiseeId) return setError("Votre profil n'est pas relié à une franchisée (franchiseeId manquant).")
+    // 1) Essaie de lire franchiseeId depuis le contexte
+    let franchiseeId: string | undefined =
+      user?.franchisee?.id ?? user?.franchiseeId ?? user?.profile?.franchiseeId
+
+    // 2) Fallback : si absent, on appelle /auth/me/full
+    if (!franchiseeId) {
+      try {
+        const meFull = await getMeFull<any>()
+        franchiseeId = extractFranchiseeId(meFull)
+      } catch {
+        // rien, on laissera l'erreur en dessous
+      }
+    }
+
+    if (!franchiseeId) {
+      return setError("Votre profil n'est pas relié à une franchisée (franchiseeId manquant).")
+    }
     if (!form.title.trim()) return setError('Le titre est obligatoire.')
     if (!form.startAt) return setError('La date/heure de début est obligatoire.')
 
@@ -61,7 +83,7 @@ export default function CreateEventPage() {
 
     setLoading(true)
     try {
-      await api.post('/events', payload) // Authorization auto via shared
+      await api.post('/events', payload)
       navigate('/franchisée/events')
     } catch (err: any) {
       const s = err?.response?.status
@@ -71,7 +93,11 @@ export default function CreateEventPage() {
         err?.message ??
         `Erreur ${s ?? ''}`.trim()
 
-      setError(s === 401 ? "Session expirée ou non authentifié·e. Veuillez vous reconnecter." : String(msg))
+      setError(
+        s === 401
+          ? "Session expirée ou non authentifié·e. Veuillez vous reconnecter."
+          : String(msg)
+      )
     } finally {
       setLoading(false)
     }
@@ -84,7 +110,10 @@ export default function CreateEventPage() {
           <h1 className="text-2xl font-semibold">Créer un événement</h1>
           <p className="text-sm opacity-70">Renseigne les informations puis enregistre.</p>
         </div>
-        <Link to="/franchisée/events" className="px-3 py-2 rounded-lg border hover:bg-black/5 transition text-sm">
+        <Link
+          to="/franchisée/events"
+          className="px-3 py-2 rounded-lg border hover:bg-black/5 transition text-sm"
+        >
           ← Retour
         </Link>
       </div>
@@ -99,51 +128,67 @@ export default function CreateEventPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="flex flex-col gap-1">
             <span className="text-sm opacity-80">Titre *</span>
-            <input className="px-3 py-2 rounded-lg border bg-transparent"
-                   value={form.title} onChange={onChange('title')} required />
+            <input
+              className="px-3 py-2 rounded-lg border bg-transparent"
+              value={form.title}
+              onChange={onChange('title')}
+              required
+            />
           </label>
 
           <label className="flex flex-col gap-1">
             <span className="text-sm opacity-80">Début *</span>
-            <input type="datetime-local" className="px-3 py-2 rounded-lg border bg-transparent"
-                   value={form.startAt} onChange={onChange('startAt')} required />
+            <input
+              type="datetime-local"
+              className="px-3 py-2 rounded-lg border bg-transparent"
+              value={form.startAt}
+              onChange={onChange('startAt')}
+              required
+            />
           </label>
 
           <label className="flex flex-col gap-1">
             <span className="text-sm opacity-80">Fin (optionnel)</span>
-            <input type="datetime-local" className="px-3 py-2 rounded-lg border bg-transparent"
-                   value={form.endAt} onChange={onChange('endAt')} />
+            <input
+              type="datetime-local"
+              className="px-3 py-2 rounded-lg border bg-transparent"
+              value={form.endAt}
+              onChange={onChange('endAt')}
+            />
           </label>
-
-          {/* Si tu as un select de lieux existants, bind-le à locationId */}
-          {/* <label className="flex flex-col gap-1">
-            <span className="text-sm opacity-80">Lieu (optionnel)</span>
-            <select className="px-3 py-2 rounded-lg border bg-transparent"
-                    value={form.locationId ?? ''} onChange={(e)=>setForm(f=>({...f, locationId: e.target.value || undefined}))}>
-              <option value="">-- Aucun --</option>
-              {locations.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
-          </label> */}
         </div>
 
         <label className="flex items-center gap-2">
-          <input type="checkbox" className="size-4"
-                 checked={form.isPublic} onChange={onChange('isPublic')} />
+          <input
+            type="checkbox"
+            className="size-4"
+            checked={form.isPublic}
+            onChange={onChange('isPublic')}
+          />
           <span className="text-sm">Événement public</span>
         </label>
 
         <label className="flex flex-col gap-1">
           <span className="text-sm opacity-80">Description</span>
-          <textarea className="px-3 py-2 rounded-lg border bg-transparent min-h-28"
-                    value={form.description} onChange={onChange('description')} />
+          <textarea
+            className="px-3 py-2 rounded-lg border bg-transparent min-h-28"
+            value={form.description}
+            onChange={onChange('description')}
+          />
         </label>
 
         <div className="flex items-center gap-3">
-          <button type="submit" disabled={loading}
-                  className="px-4 py-2 rounded-lg bg-black text-white hover:opacity-90 disabled:opacity-60">
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-4 py-2 rounded-lg bg-black text-white hover:opacity-90 disabled:opacity-60"
+          >
             {loading ? 'Création…' : 'Créer l’événement'}
           </button>
-          <Link to="/franchisée/events" className="px-4 py-2 rounded-lg border hover:bg-black/5 transition">
+          <Link
+            to="/franchisée/events"
+            className="px-4 py-2 rounded-lg border hover:bg-black/5 transition"
+          >
             Annuler
           </Link>
         </div>

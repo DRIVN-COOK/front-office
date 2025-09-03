@@ -1,7 +1,14 @@
 // src/pages/clients/cart/CartPage.tsx
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import type { MenuItem } from '@drivn-cook/shared';
+import { useAuth, type MenuItem } from '@drivn-cook/shared';
+
+// Services FRONT (customer orders)
+import {
+  createCustomerOrder,
+  addCustomerOrderLine,
+  type CreateCustomerOrderPayload,
+} from '../../../services/customer-order-lines.service';
 
 type CartLine = { item: MenuItem; qty: number };
 
@@ -13,15 +20,31 @@ function toNum(v: number | string | null | undefined) {
 function eur(n: number) {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n);
 }
+function priceHT(mi: MenuItem) {
+  return toNum(mi.priceHT);
+}
 function priceTTC(mi: MenuItem) {
-  const ht = toNum(mi.priceHT);
+  const ht = priceHT(mi);
   const tva = toNum(mi.tvaPct);
   return ht * (1 + tva / 100);
+}
+function lineTotals(l: CartLine) {
+  const unitHT = priceHT(l.item);
+  const tvaPct = toNum(l.item.tvaPct);
+  const lineHT = unitHT * l.qty;
+  const lineTVA = lineHT * (tvaPct / 100);
+  const lineTTC = lineHT + lineTVA;
+  return { unitHT, tvaPct, lineHT, lineTVA, lineTTC };
 }
 
 export default function CartPage() {
   const navigate = useNavigate();
+  const { user } = useAuth() as any;
+
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [placing, setPlacing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   // Charge depuis localStorage
   useEffect(() => {
@@ -48,11 +71,120 @@ export default function CartPage() {
   const removeLine = (id: string) => persist(cart.filter(l => l.item.id !== id));
   const clearCart = () => persist([]);
 
-  const totalTTC = useMemo(
-    () => cart.reduce((s, l) => s + priceTTC(l.item) * l.qty, 0),
-    [cart]
-  );
+  // Totaux globaux
+  const totals = useMemo(() => {
+    let totalHT = 0;
+    let totalTVA = 0;
+    let totalTTC = 0;
+    for (const l of cart) {
+      const { lineHT, lineTVA, lineTTC } = lineTotals(l);
+      totalHT += lineHT;
+      totalTVA += lineTVA;
+      totalTTC += lineTTC;
+    }
+    return { totalHT, totalTVA, totalTTC };
+  }, [cart]);
+
+  const totalTTC = totals.totalTTC;
   const itemsCount = useMemo(() => cart.reduce((s, l) => s + l.qty, 0), [cart]);
+
+  // --- Création d'une CUSTOMER ORDER (PENDING) + lignes ---
+  async function createCustomerOrderWithLines() {
+    // Récup dynamiques + fallbacks .env
+    const customerId =
+      (user?.customer?.id as string | undefined) ??
+      (user?.id as string | undefined) ??
+      (import.meta.env.VITE_CUSTOMER_ID as string | undefined);
+
+    const franchiseeId =
+      (localStorage.getItem('activeFranchiseeId') as string | null) ??
+      (user?.franchisee?.id as string | undefined) ??
+      (user?.franchiseeId as string | undefined) ??
+      (import.meta.env.VITE_FRANCHISEE_ID as string | undefined);
+
+    const warehouseId =
+      (localStorage.getItem('activeWarehouseId') as string | null) ??
+      (import.meta.env.VITE_WAREHOUSE_ID as string | undefined);
+
+    const truckId =
+      (localStorage.getItem('activeTruckId') as string | null) ??
+      (import.meta.env.VITE_TRUCK_ID as string | undefined);
+
+    if (!customerId) {
+      // Pas connecté → page login
+      navigate('/login?next=/client/cart');
+      throw new Error('Vous devez être connecté pour commander.');
+    }
+    if (!franchiseeId) {
+      throw new Error("Aucun franchisé sélectionné. Ouvrez un menu associé à un point de vente.");
+    }
+    if (cart.length === 0) throw new Error('Votre panier est vide.');
+
+    const payload: CreateCustomerOrderPayload = {
+      customerId,
+      franchiseeId,
+      ...(truckId ? { truckId } : {}),
+      ...(warehouseId ? { warehouseId } : {}),
+      channel: 'IN_PERSON',
+      totalHT: Number(totals.totalHT.toFixed(2)),
+      totalTVA: Number(totals.totalTVA.toFixed(2)),
+      totalTTC: Number(totals.totalTTC.toFixed(2)),
+    };
+
+    // 1) Créer la commande client (status par défaut: PENDING)
+    const co = await createCustomerOrder(payload);
+
+    // 2) Ajouter les lignes
+    for (const l of cart) {
+      const { unitHT, tvaPct, lineHT } = lineTotals(l);
+      await addCustomerOrderLine({
+        customerOrderId: co.id,
+        menuItemId: (l.item as any).id,
+        qty: l.qty,
+        unitPriceHT: Number(unitHT.toFixed(2)),
+        tvaPct: Number(tvaPct.toFixed(4)),
+        lineTotalHT: Number(lineHT.toFixed(2)),
+      });
+    }
+
+    return co;
+  }
+
+  // --- Commander maintenant: redirection vers la page de paiement dédiée ---
+  async function handlePay() {
+    setErr(null);
+    if (cart.length === 0) return;
+    try {
+      setPlacing(true);
+      const co = await createCustomerOrderWithLines();
+      clearCart();
+      navigate('/client/order/checkout', { state: { orderId: co.id } });
+    } catch (e: any) {
+      console.error(e);
+      const msg = e?.response?.data?.message || e?.message || 'Impossible de créer la commande. Réessaie.';
+      setErr(msg);
+    } finally {
+      setPlacing(false);
+    }
+  }
+
+  // --- Commander plus tard: on laisse la commande en PENDING ---
+  async function handleOrderLater() {
+    setErr(null);
+    if (cart.length === 0) return;
+    try {
+      setSaving(true);
+      const co = await createCustomerOrderWithLines();
+      clearCart();
+      navigate('/client/order/my', { state: { highlightId: co.id } });
+    } catch (e: any) {
+      console.error(e);
+      const msg = e?.response?.data?.message || e?.message || "Impossible d'enregistrer la commande. Réessaie.";
+      setErr(msg);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
@@ -69,6 +201,12 @@ export default function CartPage() {
           </button>
         )}
       </header>
+
+      {err && (
+        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {err}
+        </div>
+      )}
 
       {cart.length === 0 ? (
         <div className="py-16 text-center text-neutral-600">
@@ -143,11 +281,23 @@ export default function CartPage() {
             <div className="text-xs text-neutral-500 mb-4">
               TVA incluse selon chaque article.
             </div>
+
+            {/* Bouton principal: Commander maintenant */}
             <button
-              onClick={() => navigate('/client/order/checkout', { state: { cart } })}
-              className="w-full rounded-xl bg-black text-white py-2 font-medium hover:bg-neutral-800"
+              onClick={placing ? undefined : handlePay}
+              disabled={placing || saving}
+              className="w-full rounded-xl bg-black text-white py-2 font-medium hover:bg-neutral-800 disabled:opacity-60"
             >
-              Commander
+              {placing ? 'Création de la commande…' : 'Commander'}
+            </button>
+
+            {/* Bouton secondaire: Commander plus tard */}
+            <button
+              onClick={saving ? undefined : handleOrderLater}
+              disabled={placing || saving}
+              className="mt-2 w-full rounded-xl border border-neutral-300 py-2 font-medium hover:bg-neutral-50 disabled:opacity-60"
+            >
+              {saving ? 'Enregistrement…' : 'Commander plus tard'}
             </button>
           </aside>
         </div>
