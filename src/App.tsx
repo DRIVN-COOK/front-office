@@ -3,7 +3,7 @@ import { lazy, Suspense, type ReactElement } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 
 import './index.css'
-import './app.css'
+import './App.css'
 
 import { AuthProvider, useAuth, setApiBaseUrl } from '@drivn-cook/shared'
 import { API_URL } from './config'
@@ -34,7 +34,6 @@ const DashboardPage          = lazy(() => import('./pages/franchisee/DashboardPa
 const OrdersListPage         = lazy(() => import('./pages/franchisee/orders/ListPage'))
 const OrderDetailPage        = lazy(() => import('./pages/franchisee/orders/DetailPage'))
 const LiveOrdersBoardPage    = lazy(() => import('./pages/franchisee/orders/LiveOrdersBoardPage'))
-const LoyaltyCardsPage       = lazy(() => import('./pages/franchisee/loyalty/CardsPage'))
 const PurchaseOrderListPage  = lazy(() => import('./pages/franchisee/procurement/PurchaseOrderListPage'))
 const InvoicesPage           = lazy(() => import('./pages/franchisee/billing/InvoicesPage'))
 const SalesSummaryPage       = lazy(() => import('./pages/franchisee/reporting/SalesSummaryPage'))
@@ -140,7 +139,6 @@ export default function App(): JSX.Element {
                 <Route path="stock" element={<StockPage />} />
                 <Route path="orders" element={<OrdersListPage />} />
                 <Route path="orders/:id" element={<OrderDetailPage />} />
-                <Route path="loyalty" element={<LoyaltyCardsPage />} />
                 {/* La création d'événements reste côté franchisée */}
                 <Route path="events/new" element={<CreateEventPage />} />
                 <Route path="procurement" element={<PurchaseOrderListPage />} />

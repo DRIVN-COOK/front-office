@@ -4,6 +4,33 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@drivn-cook/shared';
 import { API_URL } from '../config';
 
+function useCartCount() {
+  const [count, setCount] = useState(0);
+  const read = () => {
+    try {
+      const s = localStorage.getItem('cart');
+      const arr = s ? JSON.parse(s) : [];
+      const c = Array.isArray(arr) ? arr.reduce((sum: number, l: any) => sum + (l?.qty ?? 0), 0) : 0;
+      setCount(c);
+    } catch {
+      setCount(0);
+    }
+  };
+  useEffect(() => {
+    read();
+    const handler = () => read();
+    window.addEventListener('storage', handler);
+    window.addEventListener('focus', handler);
+    window.addEventListener('cart:update', handler as any);
+    return () => {
+      window.removeEventListener('storage', handler);
+      window.removeEventListener('focus', handler);
+      window.removeEventListener('cart:update', handler as any);
+    };
+  }, []);
+  return count;
+}
+
 export default function Header() {
   const navigate = useNavigate();
   const { user, isLoading } = useAuth() as any;
@@ -14,23 +41,19 @@ export default function Header() {
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement | null>(null);
 
-  // Fermer si clic en dehors
+  // Fermer dropdown au clic extérieur / ESC
   useEffect(() => {
-    function onOutside(e: PointerEvent) {
+    const onOutside = (e: PointerEvent) => {
       if (!accountRef.current) return;
       if (!accountRef.current.contains(e.target as Node)) setAccountOpen(false);
-    }
+    };
+    const onEsc = (e: KeyboardEvent) => e.key === 'Escape' && setAccountOpen(false);
     document.addEventListener('pointerdown', onOutside);
-    return () => document.removeEventListener('pointerdown', onOutside);
-  }, []);
-
-  // Fermer avec Esc
-  useEffect(() => {
-    function onEsc(e: KeyboardEvent) {
-      if (e.key === 'Escape') setAccountOpen(false);
-    }
     document.addEventListener('keydown', onEsc);
-    return () => document.removeEventListener('keydown', onEsc);
+    return () => {
+      document.removeEventListener('pointerdown', onOutside);
+      document.removeEventListener('keydown', onEsc);
+    };
   }, []);
 
   const linkBase =
@@ -39,22 +62,17 @@ export default function Header() {
     `${linkBase} ${isActive ? 'bg-neutral-100 text-black' : 'text-neutral-600'}`;
 
   async function handleLogout() {
-    try {
-      await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
-    } catch {
-      // ignore
-    } finally {
+    try { await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' }); }
+    catch { /* ignore */ }
+    finally {
       navigate('/', { replace: true });
       window.location.reload();
     }
   }
 
-  const userInitial =
-    user?.firstName?.[0]?.toUpperCase() ??
-    user?.email?.[0]?.toUpperCase() ??
-    'U';
-
+  const userInitial = user?.firstName?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? 'U';
   const userLabel = user?.firstName ?? user?.email ?? 'Compte';
+  const cartCount = useCartCount();
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-neutral-200">
@@ -79,15 +97,29 @@ export default function Header() {
         <nav className="hidden md:flex items-center gap-1">
           <NavLink to="/client/menu" className={navClass}>Menu</NavLink>
           <NavLink to="/client/order/my" className={navClass}>Mes commandes</NavLink>
-          <NavLink to="/events" className={navClass}>Événements</NavLink> {/* ⬅️ PUBLIC */}
+          <NavLink to="/franchisée/events" className={navClass}>Événements</NavLink>
           <NavLink to="/devenir-franchisee" className={navClass}>Devenir franchisée</NavLink>
           {hasRole('FRANCHISEE') && (
             <NavLink to="/franchisée/dashboard" className={navClass}>Espace franchisée</NavLink>
           )}
         </nav>
 
-        {/* Account */}
-        <div className="flex items-center gap-2">
+        {/* Right zone: Cart + Account */}
+        <div className="flex items-center gap-3">
+          {/* Cart */}
+          <Link to="/client/cart" className="relative p-2 rounded hover:bg-neutral-100" aria-label="Panier">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              {/* icône cloche/plat */}
+              <path d="M4 18h16M6 18a6 6 0 0112 0M10 8a2 2 0 104 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            {cartCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-black text-white text-[10px] flex items-center justify-center">
+                {cartCount}
+              </span>
+            )}
+          </Link>
+
+          {/* Account */}
           {isLoading ? null : user ? (
             <div className="relative" ref={accountRef}>
               <button
@@ -105,19 +137,19 @@ export default function Header() {
                 </svg>
               </button>
 
-              {/* Dropdown */}
               {accountOpen && (
                 <div
                   role="menu"
                   tabIndex={-1}
-                  className="absolute right-0 mt-2 w-64 rounded-xl border border-neutral-200 bg-white shadow-lg overflow-hidden z-50"
+                  className="absolute right-0 mt-2 w-72 rounded-xl border border-neutral-200 bg-white shadow-lg overflow-hidden z-50"
                 >
                   <div className="px-4 py-3 text-sm text-neutral-600">
                     Connecté en tant que{' '}
                     <span className="font-medium text-neutral-900">{user.email ?? user.firstName}</span>
                   </div>
+
                   <div className="border-t" />
-                  {/* Profil pour TOUS les users connectés */}
+                  {/* Liens généraux */}
                   <Link
                     to="/profile"
                     className="block px-4 py-2 text-sm hover:bg-neutral-50"
@@ -132,15 +164,45 @@ export default function Header() {
                   >
                     Mes commandes
                   </Link>
+
+                  {/* Section FRANCHISÉE */}
                   {hasRole('FRANCHISEE') && (
-                    <Link
-                      to="/franchisée/dashboard"
-                      className="block px-4 py-2 text-sm hover:bg-neutral-50"
-                      onClick={() => setAccountOpen(false)}
-                    >
-                      Tableau de bord franchisée
-                    </Link>
+                    <>
+                      <div className="border-t" />
+                      <div className="px-4 py-2 text-[11px] uppercase tracking-wide text-neutral-500">
+                        Espace franchisée
+                      </div>
+                      <Link
+                        to="/franchisée/dashboard"
+                        className="block px-4 py-2 text-sm hover:bg-neutral-50"
+                        onClick={() => setAccountOpen(false)}
+                      >
+                        Tableau de bord
+                      </Link>
+                      <Link
+                        to="/franchisée/stock"
+                        className="block px-4 py-2 text-sm hover:bg-neutral-50"
+                        onClick={() => setAccountOpen(false)}
+                      >
+                        Stocks
+                      </Link>
+                      <Link
+                        to="/franchisée/events"
+                        className="block px-4 py-2 text-sm hover:bg-neutral-50"
+                        onClick={() => setAccountOpen(false)}
+                      >
+                        Gestion des événements
+                      </Link>
+                      <Link
+                        to="/franchisée/events/new"
+                        className="block px-4 py-2 text-sm hover:bg-neutral-50"
+                        onClick={() => setAccountOpen(false)}
+                      >
+                        Créer un événement
+                      </Link>
+                    </>
                   )}
+
                   <div className="border-t" />
                   <button
                     onClick={handleLogout}
@@ -175,11 +237,15 @@ export default function Header() {
               className={({ isActive }) => `px-3 py-2 rounded-md ${isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'}`}>
               Menu
             </NavLink>
+            <NavLink to="/client/cart" onClick={() => setMobileOpen(false)}
+              className={({ isActive }) => `px-3 py-2 rounded-md ${isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'}`}>
+              Panier {cartCount > 0 ? `(${cartCount})` : ''}
+            </NavLink>
             <NavLink to="/client/order/my" onClick={() => setMobileOpen(false)}
               className={({ isActive }) => `px-3 py-2 rounded-md ${isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'}`}>
               Mes commandes
             </NavLink>
-            <NavLink to="/events" onClick={() => setMobileOpen(false)}  // ⬅️ PUBLIC
+            <NavLink to="/franchisée/events" onClick={() => setMobileOpen(false)}
               className={({ isActive }) => `px-3 py-2 rounded-md ${isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'}`}>
               Événements
             </NavLink>
@@ -188,25 +254,38 @@ export default function Header() {
               Devenir franchisée
             </NavLink>
 
-            {user ? (
+            {user && hasRole('FRANCHISEE') && (
               <>
-                {hasRole('FRANCHISEE') && (
-                  <NavLink to="/franchisée/dashboard" onClick={() => setMobileOpen(false)}
-                    className={({ isActive }) => `px-3 py-2 rounded-md ${isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'}`}>
-                    Espace franchisée
-                  </NavLink>
-                )}
-                <NavLink to="/profile" onClick={() => setMobileOpen(false)}
+                <div className="border-t my-2" />
+                <div className="px-3 py-1 text-[11px] uppercase tracking-wide text-neutral-500">
+                  Espace franchisée
+                </div>
+                <NavLink to="/franchisée/dashboard" onClick={() => setMobileOpen(false)}
                   className={({ isActive }) => `px-3 py-2 rounded-md ${isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'}`}>
-                  Profil
+                  Tableau de bord
                 </NavLink>
-                <button
-                  onClick={handleLogout}
-                  className="text-left px-3 py-2 rounded-md text-red-600 hover:bg-red-50"
-                >
-                  Se déconnecter
-                </button>
+                <NavLink to="/franchisée/stock" onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) => `px-3 py-2 rounded-md ${isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'}`}>
+                  Stocks
+                </NavLink>
+                <NavLink to="/franchisée/events" onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) => `px-3 py-2 rounded-md ${isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'}`}>
+                  Gestion des événements
+                </NavLink>
+                <NavLink to="/franchisée/events/new" onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) => `px-3 py-2 rounded-md ${isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'}`}>
+                  Créer un événement
+                </NavLink>
               </>
+            )}
+
+            {user ? (
+              <button
+                onClick={() => { setMobileOpen(false); handleLogout(); }}
+                className="text-left px-3 py-2 rounded-md text-red-600 hover:bg-red-50 mt-2"
+              >
+                Se déconnecter
+              </button>
             ) : (
               <>
                 <NavLink to="/login" onClick={() => setMobileOpen(false)}
